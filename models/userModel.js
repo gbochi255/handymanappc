@@ -47,7 +47,7 @@ module.exports = {
             return rows[0];
         },
         async deleteUser(id) {
-               await db.query(`DELETE FROMusers WHERE user_id = $1;`, [id]);
+               await db.query(`DELETE FROM users WHERE user_id = $1;`, [id]);
                return 
         }
 };
