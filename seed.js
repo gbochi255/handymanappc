@@ -29,7 +29,7 @@ types.setTypeParser(1082, (value) => value); // Return raw string (YYYY-MM-DD)
 types.setTypeParser(1114, (value) => value); // TIMESTAMP
 types.setTypeParser(1184, (value) => value); //TIMESTAMPTZ
   
-const db = new Pool(config);
+//const db = new Pool(config);
 
 async function seed() {
     try{
