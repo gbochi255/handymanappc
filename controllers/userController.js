@@ -1,41 +1,56 @@
-const userModel = require('../models/userModel')
+import { createUser, getUserByEmail, getUserById, updateUser, deleteUser } from '../models/userModel.js';
+//const userModel = require('../models/userModel')
+import jwt from "jsonwebtoken";
 
-module.exports = {
-    async register(req, res, next){
+const JWT_SECRET = process.env.JWT_SECRET;
+
+
+    export async function register(req, res, next){
         try{
-            const userData = req.body;
-            const { error } = validateUser(userData);
-            if (error) return res.status(400).json({ error: error.details[0].message });
-            const user = await userModel.createUser(userData);
+            const user = await  createUser(req.body);
             res.status(201).json(user);
         }catch(err){
             next(err)
         }
-    },
-    async getProfile(req, res, next) {
-        try{
-            const user = await userModel.getUserById(req.params.id);
-            if(!user) return res.status(404).json({ error: 'User not found' });
-            res.json(user);
+    }
+    
+    export async function login(req, res, next) {
+        try {
+            const { email, password } = req.body;
+            const user = await getUserByEmail(email);
+            if(!user || user.password !== password) {
+                throw Object.assign(new Error("Invalid credentials"), { status: 401 });
+            }
+            const token = jwt.sign({ userId: user.user_id }, JWT_SECRET, { expiresIn: "ihr" });
+            res.json({ user, token });
         }catch(err) {
             next(err);
         }
-    },
-    async updateProfile(req, res, next) {
+    }
+    
+    export async function getProfile(req, res, next) {
         try{
-        const updates = req.body;
-        const user = await userModel.updateUser(requestAnimationFrame.params.id, updates);
+            const user = await getUserById(Number(req.params.id));
+            if(!user) throw Object.assign(new Error("User not found"), {status:404});
+             res.json(user);
+            
+        }catch(err) {
+            next(err);
+        }
+    }
+    export async function patchProfile(req, res, next) {
+        try{
+        const user = await updateUser(Number(req.params.id), req.body);
         res.json(user);
     }catch(err){
         next(err);
     }
-    },
-    async deleteProfile(req, res, next) {
+    }
+    export async function deleteProfile(req, res, next) {
         try{
-            await userModel.deleteUser(req.params.id);
+            await deleteUser(Number(req.params.id));
             res.status(204).end();
         }catch(err) {
             next(err)
         }
     }
-};

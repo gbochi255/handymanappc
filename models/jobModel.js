@@ -1,18 +1,18 @@
-const db = require('../connection.cjs')
-const { checkUserExists } = require('../utils/validation');
+import db from '../connection.js';
+import { checkUserExists } from '../utils/validation.js';
 /**
  * fetch all jobs, optionally filtering by creator and/or status.
  * param {{ created_by?: number, status?: string }} option
  * returns {promise<Array>}
  */
-async function fetchJobs({ created_by = null, status = null } = {}) {
+export async function fetchJobs({ created_by = null, status = null } = {}) {
     const sql = `
     SELECT *
     FROM jobs j
     WHERE ($1::jobs_status IS NULL OR j.created_by = $2)
     ORDER BY j.date_posted DESC;
     `;
-    const params = [status, CREATED_BY];
+    const params = [status, created_by];
     const { rows } = await db.query(sql, params);
     return rows;
 }
@@ -23,7 +23,7 @@ async function fetchJobs({ created_by = null, status = null } = {}) {
  * returns {Promise<Array>}
  */
 
-async function fetchClientJobs({ client_id = null, status = null } = {}) {
+export async function fetchClientJobs({ client_id = null, status = null } = {}) {
     if (client_id !== null) await checkUserExists(client_id);
 
     let sql = `
@@ -45,7 +45,7 @@ async function fetchClientJobs({ client_id = null, status = null } = {}) {
         conditions.push(`j.status = $${params.length}`);
     }
     if (conditions.length) {
-        sql +=  " WHERE " + conditions.join(" AND ");
+        sql +=  `WHERE  ${conditions.join(" AND ")}`;
     }
     sql += `
     GROUP BY j.job_id
@@ -61,13 +61,13 @@ async function fetchClientJobs({ client_id = null, status = null } = {}) {
  * returns {Promise<Array>}
  */
 
-async function fetchProviderJobs({ provider_id, distanceMiles = 10, status = null }) {
+export async function fetchProviderJobs({ provider_id, distanceMiles = 10, status = null }) {
     await checkUserExists(provider_id, true);
     const meters = distanceMiles * 1609.34;
 
     let sql = `
-    ROUND(
-    ST_Distance(
+    SELECT j.*,
+    ROUND(ST_Distance(
     u.location::geography,
     j.location::geography) /1609.34, 3)
     :: double precision AS distance
@@ -81,9 +81,7 @@ async function fetchProviderJobs({ provider_id, distanceMiles = 10, status = nul
         params.push(status);
         conditions.push(`j.status = $${params.length}`);
     }
-    sql += " WHERE " + conditions.join(" AND ");
-    sql += `
-    ORDER BY ST_Distance(
+    sql += `WHERE ${conditions.join(" AND ")} ORDER BY ST_Distance(
     u.location::geography,
     j.location::geography) ASC;
     `;
@@ -95,7 +93,7 @@ async function fetchProviderJobs({ provider_id, distanceMiles = 10, status = nul
  * Internal helper: fetch provider's jobs joined to their bids, with custom select and where.
  */
 
-async function _fetchProviderJobsWithBids(provider_id, additionalSelect, whereClause) {
+export async function _fetchProviderJobsWithBids(provider_id, additionalSelect, whereClause) {
     await checkUserExists(provider_id, true);
 
     const sql = `
@@ -117,7 +115,7 @@ async function _fetchProviderJobsWithBids(provider_id, additionalSelect, whereCl
     return rows;
 }
 
-async function fetchProviderBids(provided_id) {
+export async function fetchProviderBids(provided_id) {
     const additionalSelect = `,
     CASE
     WHEN j.status = 'open' THEN 'Waiting'
@@ -133,7 +131,7 @@ async function fetchProviderBids(provided_id) {
     return _fetchProviderJobsWithBids(provided_id, additionalSelect, whereClause);
 }
 
-async function fetchProviderWonJobs(provider_id) {
+export async function fetchProviderWonJobs(provider_id) {
     const additionalSelect = `,
     CASE
     WHEN j.status = 'accepted' THEN 'Pending'
@@ -151,7 +149,7 @@ async function fetchProviderWonJobs(provider_id) {
  * Create a new job, using the creator's current location
  */
 
-async function postJob({ summary, job_detail, category, created_by, photo_url, target_date }) {
+export async function postJob({ summary, job_detail, category, created_by, photo_url, target_date }) {
     const sql = `
     INSERT INTO jobs (summary, job_detail, category, created_by, photo_url, target_date, location)
     SELECT $1, $2, $3, $4, $5, $6, u.location
@@ -173,7 +171,7 @@ async function postJob({ summary, job_detail, category, created_by, photo_url, t
  * Accept one bid (rejection for all others) in a single transaction.
  */
 
-async function updateBidAccept(job_id, bid_id) {
+export async function updateBidAccept(job_id, bid_id) {
     try{
         await db.query("BEGIN");
         const bidSql = `
@@ -200,7 +198,7 @@ async function updateBidAccept(job_id, bid_id) {
  * fetch a single job by its ID
  */
 
-async function fetchJobByID(job_id) {
+export async function fetchJobByID(job_id) {
     const sql = `
     SELECT *, ST_AsText(location) AS location_wkt
     FROM jobs
@@ -219,7 +217,7 @@ async function fetchJobByID(job_id) {
  * place a new bid on a job
  */
 
-async function insertBid({ job_id, amount, provider_id }) {
+export async function insertBid({ job_id, amount, provider_id }) {
     if (!job_id || !amount || !provider_id) {
         const err = new Error("Missing required parameters");
         err.status = 400;
@@ -237,7 +235,7 @@ async function insertBid({ job_id, amount, provider_id }) {
 /**
  * mark a job completed
  */
-async function upDateJobComplete(job_id) {
+export async function upDateJobComplete(job_id) {
     const sql = `
     UPDATE jobs
     SET status = 'completed', completion_date =CURRENT_TIMESTAMP
@@ -253,6 +251,6 @@ async function upDateJobComplete(job_id) {
     return rows[0];
 }
 
-module.exports = { fetchJobs, fetchClientJobs, fetchProviderJobs, fetchProviderBids,
-    fetchProviderWonJobs, postJob, upDateJobComplete, updateBidAccept, fetchJobByID, insertBid
-};
+//module.exports = { fetchJobs, fetchClientJobs, fetchProviderJobs, fetchProviderBids,
+  //  fetchProviderWonJobs, postJob, upDateJobComplete, updateBidAccept, fetchJobByID, insertBid
+//};
